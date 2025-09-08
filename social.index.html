@@ -1,0 +1,447 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+function App() {
+  // 質問と選択肢のデータ
+  const questions = [
+    { id: 1, text: "話すペースが", type: "AB", options: { A: "早い", B: "ゆっくり" } },
+    { id: 2, text: "話すとき眉を", type: "AB", options: { A: "とらない", B: "とる" } },
+    { id: 3, text: "話すとき居場所が", type: "AB", options: { A: "さっぱり", B: "ソフト" } },
+    { id: 4, text: "話すとき声が", type: "AB", options: { A: "大きい", B: "小さい" } },
+    { id: 5, text: "話すとき", type: "AB", options: { A: "自分から話す", B: "後から話す" } },
+    { id: 6, text: "話すとき", type: "AB", options: { A: "結論から話す", B: "席を追って話す" } },
+    { id: 7, text: "話すとき", type: "AB", options: { A: "まず自分の意見を言う", B: "まずまわりの意見を聞く" } },
+    { id: 8, text: "話すとき", type: "AB", options: { A: "視線をしっかり合わせる", B: "視線をソフトに合わせる" } },
+    { id: 9, text: "話すとき", type: "AB", options: { A: "質問へは即決", B: "質問へは思考" } },
+    { id: 10, text: "表情が", type: "CD", options: { C: "豊かである", D: "ポーカーフェイス" } }, 
+    { id: 11, text: "声に", type: "CD", options: { C: "抑揚がある", D: "抑揚がない" } },
+    { id: 12, text: "身振り手振りを", type: "CD", options: { C: "交えて話す", D: "あまり使わない" } },
+    { id: 13, text: "雰囲気は", type: "CD", options: { C: "カジュアルである", D: "ビジネスライクである" } },
+    { id: 14, text: "使う言葉は", type: "CD", options: { C: "平易なものが多い", D: "固いものが多い" } },
+    { id: 15, text: "得意なのは", type: "CD", options: { C: "たとえ話やエピソード", D: "論理・データ・数字" } },
+    { id: 16, text: "はじめは", type: "CD", options: { C: "まず人間関係を築く", D: "すぐに仕事に取り掛かる" } },
+    { id: 17, text: "仕事のしかたは", type: "CD", options: { C: "周りと一緒に進めていく", D: "一人で黙々と進める" } },
+    { id: 18, text: "気持ちが", type: "CD", options: { C: "顔に出やすい", D: "顔には出ない" } },
+  ];
+
+  // 各質問の選択肢を保存するステート
+  const [answers, setAnswers] = useState({});
+  // 結果表示の有無
+  const [showResults, setShowResults] = useState(false);
+  // エラーメッセージ
+  const [error, setError] = useState('');
+  // 計算されたスコアを保存するステート
+  const [waiScores, setWaiScores] = useState(null);
+
+  // Canvas要素への参照
+  const canvasRef = useRef(null);
+
+  // 回答が変更されたときのハンドラー
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  // ランダムに回答を生成する関数
+  const handleRandomAnswers = () => {
+    const newAnswers = {};
+    questions.forEach(q => {
+      const optionsKeys = Object.keys(q.options);
+      const randomKey = optionsKeys[Math.floor(Math.random() * optionsKeys.length)];
+      newAnswers[q.id] = randomKey;
+    });
+    setAnswers(newAnswers);
+    setError(''); // エラーをリセット
+  };
+
+  // 結果を計算する関数
+  const calculateResults = () => {
+    // 全ての質問に回答しているかチェック
+    const allAnswered = questions.every(q => answers[q.id] !== undefined);
+    if (!allAnswered) {
+      setError('全ての質問に回答してください。');
+      return null; // 全て回答されていない場合はnullを返す
+    }
+    setError('');
+
+    let countA = 0;
+    let countB = 0;
+    let countC = 0;
+    let countD = 0;
+
+    questions.forEach(q => {
+      const answer = answers[q.id];
+      if (answer === 'A') countA++;
+      else if (answer === 'B') countB++;
+      else if (answer === 'C') countC++;
+      else if (answer === 'D') countD++;
+    });
+
+    // 計算式: Aの個数 - Bの個数, Cの個数 - Dの個数
+    // スコアの範囲を-9から+9に調整
+    const scoreAB = countA - countB;
+    const scoreCD = countC - countD;
+
+    return { countA, countB, countC, countD, scoreAB, scoreCD };
+  };
+
+  // 結果の表示を切り替える
+  const toggleResults = () => {
+    const results = calculateResults();
+    if (results) {
+      setWaiScores(results); // 計算結果をステートに保存
+      setShowResults(true);
+    }
+  };
+
+  // アプリをリセット
+  const resetApp = () => {
+    setAnswers({});
+    setShowResults(false);
+    setError('');
+    setWaiScores(null); // スコアもリセット
+  };
+
+  // ソーシャルスタイルをプロットするCanvas描画関数
+  useEffect(() => {
+    if (showResults && waiScores && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const scaleX = canvas.width / 18; // -9 から +9 の範囲に対応
+      const scaleY = canvas.height / 18; // -9 から +9 の範囲に対応
+
+      // Canvasをクリア
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 背景色
+      ctx.fillStyle = '#f9fafb'; // Tailwind gray-50
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // X軸 (水平)
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(canvas.width, centerY);
+      ctx.strokeStyle = '#9ca3af'; // Tailwind gray-400
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Y軸 (垂直)
+      ctx.beginPath();
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, canvas.height);
+      ctx.strokeStyle = '#9ca3af'; // Tailwind gray-400
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // 目盛りとラベル
+      ctx.font = '12px Inter';
+      ctx.fillStyle = '#4b5563'; // Tailwind gray-700
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // X軸の目盛りとラベル
+      for (let i = -9; i <= 9; i += 2) {
+        const x = centerX + i * scaleX;
+        ctx.beginPath();
+        ctx.moveTo(x, centerY - 5);
+        ctx.lineTo(x, centerY + 5);
+        ctx.stroke();
+        if (i !== 0) {
+          ctx.fillText(i.toString(), x, centerY + 15);
+        }
+      }
+
+      // Y軸の目盛りとラベル
+      for (let i = -9; i <= 9; i += 2) {
+        const y = centerY - i * scaleY; // Y軸は上方向がプラス
+        ctx.beginPath();
+        ctx.moveTo(centerX - 5, y);
+        ctx.lineTo(centerX + 5, y);
+        ctx.stroke();
+        if (i !== 0) {
+          ctx.fillText(i.toString(), centerX - 15, y);
+        }
+      }
+
+      // 軸のタイトル
+      ctx.font = '14px Inter';
+      ctx.fillStyle = '#1f2937'; // Tailwind gray-900
+
+      ctx.textAlign = 'right';
+      ctx.fillText('意見を主張', canvas.width - 10, centerY - 25);
+      ctx.textAlign = 'left';
+      ctx.fillText('意見を聞く', 10, centerY - 25);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('感情を抑える', centerX, 15);
+      ctx.textBaseline = 'top';
+      ctx.fillText('感情を出す', centerX, canvas.height - 15);
+
+      // ソーシャルスタイルのラベル
+      ctx.font = '20px Inter';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#059669'; // Emerald-600
+      ctx.fillText('アナリティカル', 10, 30);
+      ctx.fillStyle = '#ef4444'; // Red-500
+      ctx.fillText('エクスプレッシブ', 10, canvas.height - 10);
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#1e3a8a'; // Blue-900
+      ctx.fillText('ドライビング', canvas.width - 10, 30);
+      ctx.fillStyle = '#f59e0b'; // Amber-500
+      ctx.fillText('エミアブル', canvas.width - 10, canvas.height - 10);
+      
+      // プロット (赤丸)
+      const plotX = centerX + waiScores.scoreAB * scaleX;
+      const plotY = centerY - waiScores.scoreCD * scaleY; // Y軸は上方向がプラスなのでスコアを反転
+
+      ctx.beginPath();
+      ctx.arc(plotX, plotY, 8, 0, Math.PI * 2, false); // 半径8の円
+      ctx.fillStyle = '#dc2626'; // Red-600
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#b91c1c'; // Red-700
+      ctx.stroke();
+
+      // プロットされた座標のテキスト
+      ctx.font = '14px Inter';
+      ctx.fillStyle = '#1f2937';
+      ctx.textAlign = 'center';
+      ctx.fillText(`(${waiScores.scoreAB}, ${waiScores.scoreCD})`, plotX, plotY - 15);
+    }
+  }, [showResults, waiScores]);
+
+
+  // 結果の解釈を生成する関数
+  const renderInterpretation = (results) => {
+    if (!results) return null;
+
+    const { scoreAB, scoreCD } = results;
+
+    let interpretationHtml = ``;
+
+    // コミュニケーションスタイル (A-Bスコア)
+    interpretationHtml += `<h3 class="text-xl font-bold text-gray-800 mb-3">🗣️ コミュニケーションスタイル (A - B スコア: ${scoreAB})</h3>`;
+    if (scoreAB > 0) {
+      interpretationHtml += `<p class="mb-2">あなたのコミュニケーションスタイルは、**Aタイプ（積極的・直接的）**に傾いています。あなたは会話のペースが早く、自分の意見を明確に伝え、議論の結論を重視する傾向があります。視線もはっきりと合わせることが多く、質問には即座に答える傾向が見られます。これは、**リーダーシップを発揮しやすく、決断力がある**という強みになります。</p>`;
+      interpretationHtml += `<p class="mb-2">**看護師として:** 患者さんやチームメンバーに**明確な指示や情報**を伝えるのが得意で、緊急時にも迅速な対応が可能です。効率性を重視し、問題解決に直結するコミュニケーションを取ることで、チームを引っ張っていく存在となれるでしょう。しかし、時には相手が話すペースに合わせることを意識したり、相手の意見を十分に引き出すための「聞く姿勢」をより意識することで、より円滑な人間関係を築けます。</p>`;
+      interpretationHtml += `<p class="mb-2">**同僚・先輩看護師との関係性:** 意見を率直に伝えることができるため、誤解が少なく、効率的な情報共有が可能です。議論では結論を急ぐ傾向があるため、周囲からは**頼りになる、決断力がある**と評価されるでしょう。一方で、相手がじっくり考えたいタイプの場合、少し押しが強く感じられることもあります。相手のペースや意見を引き出す質問を意識することで、より深い信頼関係を築けるでしょう。</p>`;
+    } else if (scoreAB < 0) {
+      interpretationHtml += `<p class="mb-2">あなたのコミュニケーションスタイルは、**Bタイプ（穏やか・間接的）**に傾いています。あなたは会話のペースがゆっくりで、相手の出方を見ながら話を進める傾向があります。席を温めてから話したり、まず周囲の意見を聞いてから自分の意見を述べたりすることが多いでしょう。視線をソフトに合わせ、質問には熟考してから答える傾向が見られます。これは、**聞き上手で思慮深く、調和を重んじる**という強みになります。</p>`;
+      interpretationHtml += `<p class="mb-2">**看護師として:** 患者さんの話をじっくりと聞き、**共感的なコミュニケーション**を通じて信頼関係を築くのが得意です。チーム内でも、メンバーの意見を尊重し、調和を保つことで円滑な連携を促進できるでしょう。しかし、緊急時や迅速な判断が求められる場面では、自分の意見をより明確かつ簡潔に伝える練習も有効です。<br/>`;
+      interpretationHtml += `<p class="mb-2">**同僚・先輩看護師との関係性:** 相手の話を丁寧に聞く姿勢は、同僚や先輩からの信頼を得やすく、相談されやすい存在となるでしょう。チームの調和を保ち、意見対立を避ける傾向があるため、**穏やかで協調性がある**と評価されます。一方で、自分の意見を主張する場面が少ないと、時に「何を考えているか分かりにくい」と思われたり、主体性がないと受け取られたりする可能性もあります。ここぞという時には、自分の考えを簡潔にまとめて伝える意識を持つと良いでしょう。</p>`;
+    } else {
+      interpretationHtml += `<p class="mb-2">あなたのコミュニケーションスタイルは、AタイプとBタイプがバランスよく混在しています。状況に応じて、柔軟にコミュニケーションのスタイルを使い分けることができるでしょう。</p>`;
+    }
+
+    // C-D スコアの解釈
+    interpretationHtml += `<h3 class="text-xl font-bold text-gray-800 mb-3 mt-6">😊 感情表現と対人アプローチ (C - D スコア: ${scoreCD})</h3>`;
+    if (scoreCD > 0) {
+      interpretationHtml += `<p class="mb-2">あなたの感情表現と対人アプローチは、**Cタイプ（感情豊か・関係重視）**に傾いています。表情が**豊か**で、声に抑揚があり、身振り手振りを交えて話すことが多いでしょう。平易な言葉でたとえ話やエピソードを話すのが得意で、仕事に取り掛かる前にはまず人間関係を築くことを重視します。気持ちが顔に出やすい傾向があります。これは、**感情豊かで親しみやすく、共感力が高い**という強みになります。</p>`;
+      interpretationHtml += `<p class="mb-2">**看護師として:** 患者さんの感情に寄り添い、**人間的な温かさ**をもって接することができます。非言語的なコミュニケーションも得意で、患者さんやご家族の不安を和らげるのが上手です。チーム内でも、感情的なつながりを大切にし、和やかな雰囲気を作ることで、メンバー間の協力関係を深められるでしょう。</p>`;
+      interpretationHtml += `<p class="mb-2">**同僚・先輩看護師との関係性:** 表情や感情が豊かであるため、**親しみやすく、人間味がある**と評価されるでしょう。まず人間関係を築くことを重視する姿勢は、新しいチームや部署でもスムーズに馴染むのに役立ちます。感情的なコミュニケーションが得意なため、同僚の悩みを聞いたり、共感を示したりすることで、深い信頼関係を築けます。一方で、感情が顔に出やすいことで、ストレスや不満が周囲に伝わりやすいこともあるため、自己開示のバランスを意識すると良いでしょう。</p>`;
+    } else if (scoreCD < 0) {
+      interpretationHtml += `<p class="mb-2">あなたの感情表現と対人アプローチは、**Dタイプ（冷静・論理重視）**に傾いています。表情はポーカーフェイスで、声に抑揚があまりなく、身振り手振りをあまり使いません。固い言葉を使うことが多く、論理やデータ、数字に基づいた話が得意です。仕事にはすぐに取り掛かり、一人で黙々と進めることを好みます。気持ちが顔に出にくい傾向があります。これは、**冷静で客観的、論理的な思考力**という強みになります。</p>`;
+      interpretationHtml += `<p class="mb-2">**看護師として:** 患者さんの状態を**客観的に観察し、冷静に分析**する能力に優れています。感情に流されず、事実に基づいた的確な判断を下すことができ、緊急時や複雑な状況でも頼りになります。チーム内でも、論理的な問題解決能力を発揮し、効率的な業務遂行に貢献できるでしょう。</p>`;
+      interpretation += `<p class="mb-2">**同僚・先輩看護師との関係性:** 論理的で客観的なコミュニケーションは、誤解を招きにくく、効率的な情報伝達を可能にします。感情に流されず、事実に基づいて問題解決を図る姿勢は、チーム内で**冷静沈着な問題解決者**として評価されるでしょう。一方で、表情や感情が表に出にくいことで、周囲からは「冷たい」「何を考えているか分からない」と思われたり、人間関係の構築が苦手だと受け取られたりする可能性もあります。意図的に笑顔を見せる、感謝や共感を言葉で伝えるなど、非言語的なコミュニケーションにも少し意識を向けることで、より良好な関係を築けるでしょう。</p>`;
+    } else {
+      interpretationHtml += `<p class="mb-2">あなたの感情表現と対人アプローチは、CタイプとDタイプがバランスよく混在しています。状況に応じて、柔軟に感情の表現や対人アプローチのスタイルを使い分けることができるでしょう。</p>`;
+    }
+
+    // 全体的なトーンと自己評価の考察
+    const allAnswersValues = Object.values(answers);
+    // A, C をポジティブ、B, D をネガティブと仮定してカウント
+    const positiveCount = allAnswersValues.filter(ans => ans === 'A' || ans === 'C').length;
+    const negativeCount = allAnswersValues.filter(ans => ans === 'B' || ans === 'D').length;
+    let toneInterpretation = "";
+
+    if (positiveCount > negativeCount) {
+      toneInterpretation = "あなたの回答全体には、**ポジティブなトーン**が多く見られました。これは、あなたが**明るく前向きな性格**であり、現在の自己評価も比較的高い傾向にあることを示唆しています。困難な状況でも希望を見出し、建設的に物事を捉える力があるでしょう。";
+    } else if (negativeCount > positiveCount) {
+      toneInterpretation = "あなたの回答全体には、**ネガティブなトーン**が多く見られました。これは、現在の自己評価が低めであったり、**劣等感を抱きやすい傾向**があることを示唆しています。慎重で現実的な視点を持つ一方で、課題やリスクに意識が向きやすいのかもしれません。ご自身の心境を振り返る良い機会となるでしょう。";
+    } else {
+      toneInterpretation = "あなたの回答は、ポジティブな側面とネガティブな側面がバランスよく混在しています。これは、あなたが物事を多角的に捉え、現実を冷静に見つめることができるバランスの取れた性格であることを示唆しています。";
+    }
+
+    interpretationHtml += `<h3 class="text-xl font-bold text-gray-800 mb-3 mt-6">✨ 全体的なトーンと自己評価の考察</h3><p class="mb-2">${toneInterpretation}</p>`;
+
+
+    // WAIテスト（文章完成法）の視点からの解釈
+    interpretationHtml += `<h3 class="text-xl font-bold text-gray-800 mb-3 mt-6">📜 WAIテスト（文章完成法）の視点からの解釈</h3>`;
+    interpretationHtml += `<p class="mb-2">このテストは、心理学的な「投影法」の一種で、無意識の欲求や性格、感情が表れやすいのが特徴です。回答番号を下に進むにつれて、より深層の心理が反映されやすいと言われています。</p>`;
+    interpretationHtml += `<ul>`;
+    interpretationHtml += `<li><strong>1～9番の回答:</strong> 一般的に、**あなたがよく自覚している個人的な性格や特性**が表れやすい部分です。あなたの表向きの自己認識や、周囲から見られているであろう側面が反映されているかもしれません。</li>`;
+    interpretationHtml += `<li><strong>10～18番の回答:</strong> **意識化されている欲求や、深層心理に存在するセルフイメージ**が表れやすい部分です。自分が「こうありたい」という願望や、日頃から考えていること、あるいは潜在的に感じている自己の姿が垣間見えるかもしれません。特に後半の設問（15～18番）は、**無意識的な欲求や、抑圧された悩み、気づいていないセルフイメージ**が表れやすいと言われています。回答に詰まったり、意外な言葉が出てきたりした場合、特にこの領域にヒントが隠されている可能性があります。ご自身で読み返してみて、ハッとさせられるような回答はありましたか？</li>`;
+    interpretationHtml += `</ul>`;
+    interpretationHtml += `<p class="mt-4 text-gray-600 italic">（注釈: 上記の答案番号の区切りは諸説あるため、あくまで目安としてご活用ください。）</p>`;
+
+    // ソーシャルスタイルのタイプ診断
+    let socialStyle = '';
+    let socialStyleDescription = '';
+    let nursingInsight = '';
+
+    if (scoreAB >= 0 && scoreCD >= 0) {
+      socialStyle = 'ドライビング (Driving)';
+      socialStyleDescription = '目標志向が強く、決断力があり、結果を重視します。リーダーシップを発揮する傾向があります。';
+      nursingInsight = `
+        <h4 class="text-lg font-semibold text-gray-700 mt-4">看護師としての同僚・先輩へのソーシャルスタイル分析</h4>
+        <ul>
+          <li><strong>強み:</strong> チーム目標達成への貢献意欲が高く、迅速な意思決定で業務を効率的に進めます。リーダーシップを発揮し、緊急時にも冷静に的確な指示を出すことができます。論理的で分かりやすいコミュニケーションで、同僚や先輩からの信頼を得やすいでしょう。</li>
+          <li><strong>課題:</strong> 結果を重視するあまり、同僚や先輩の感情や意見を十分に汲み取れていないと感じられることがあります。時には「押しが強い」「冷たい」という印象を与える可能性も。他者の意見を傾聴し、共感を示すことで、より円滑な人間関係を築けます。フィードバックの際には、相手の感情に配慮し、寄り添う姿勢を見せることを意識しましょう。</li>
+        </ul>
+      `;
+    } else if (scoreAB < 0 && scoreCD >= 0) {
+      socialStyle = 'エミアブル (Amiable)';
+      socialStyleDescription = '人間関係を重視し、協調性があり、共感力が高いです。チームの調和を重んじます。';
+      nursingInsight = `
+        <h4 class="text-lg font-semibold text-gray-700 mt-4">看護師としての同僚・先輩へのソーシャルスタイル分析</h4>
+        <ul>
+          <li><strong>強み:</strong> チームの調和を重視し、共感力が高いため、同僚や先輩との人間関係を円滑に築くのが非常に得意です。相手の話をじっくりと聞き、理解しようとする姿勢は、周囲からの信頼と安心感を生み出します。相談されやすく、チームの雰囲気を和やかに保つ存在となるでしょう。</li>
+          <li><strong>課題:</strong> 意見の対立を避けたり、自分の意見を主張するのが苦手な場合があります。責任感が強く、他者の負担を背負い込みすぎてしまう傾向も。時には「優柔不断」「自己主張が少ない」と見られる可能性も。チーム内での自分の役割や意見を明確に伝え、助けを求めることも必要です。建設的な意見交換の場では、自分の考えを簡潔にまとめて伝える練習が有効です。</li>
+        </ul>
+      `;
+    } else if (scoreAB < 0 && scoreCD < 0) {
+      socialStyle = 'アナリティカル (Analytical)';
+      socialStyleDescription = '論理的思考に優れ、客観的で慎重です。データや事実に基づいて意思決定を行います。';
+      nursingInsight = `
+        <h4 class="text-lg font-semibold text-gray-700 mt-4">看護師としての同僚・先輩へのソーシャルスタイル分析</h4>
+        <ul>
+          <li><strong>強み:</strong> 論理的思考力が高く、データや事実に基づいて冷静に状況を分析し、問題解決にあたることができます。感情に流されず、客観的な視点から正確な情報共有を行うため、チーム内での情報伝達の信頼性が高いです。業務改善提案やリスク管理において、具体的な解決策を提示する能力に長けています。</li>
+          <li><strong>課題:</strong> 感情表現が乏しいため、周囲からは「冷たい」「とっつきにくい」という印象を与えやすいです。人間関係の構築において、感情的なつながりよりも論理や効率を優先する傾向があるため、同僚や先輩との間に距離を感じさせてしまうことも。意識的に笑顔を増やしたり、感謝の言葉を伝えたりすることで、親しみやすさを増すことができます。また、他者の感情的なニーズにも目を向ける努力が求められます。</li>
+        </ul>
+      `;
+    } else if (scoreAB >= 0 && scoreCD < 0) {
+      socialStyle = 'エクスプレッシブ (Expressive)';
+      socialStyleDescription = '感情豊かで直感的、人を巻き込む力があります。活発なコミュニケーションを好みます。';
+      nursingInsight = `
+        <h4 class="text-lg font-semibold text-gray-700 mt-4">看護師としての同僚・先輩へのソーシャルスタイル分析</h4>
+        <ul>
+          <li><strong>強み:</strong> 感情表現が豊かで、活発なコミュニケーションを通じてチームのムードメーカーとなることができます。直感力に優れ、新しいアイデアやアプローチを積極的に提案し、周囲を巻き込む力があります。患者さんだけでなく、同僚や先輩とも感情的なつながりを築きやすく、明るく前向きな雰囲気を作り出します。</li>
+          <li><strong>課題:</strong> 感情の起伏が激しく、時には衝動的な行動や発言をしてしまうことがあります。論理よりも感情を優先する傾向があるため、客観的な事実に基づいた冷静な議論が苦手な場合も。計画性よりも直感を頼りにすることが多いため、業務の正確性や継続性に課題が生じる可能性も。感情のコントロールや、発言前に一呼吸置くことを意識することで、より信頼性の高いプロフェッショナルとして評価されるでしょう。</li>
+        </ul>
+      `;
+    }
+
+    interpretationHtml += `<h3 class="text-xl font-bold text-gray-800 mb-3 mt-6">📊 あなたのソーシャルスタイルタイプ: ${socialStyle}</h3>`;
+    interpretationHtml += `<p class="mb-4">${socialStyleDescription}</p>`;
+    interpretationHtml += nursingInsight;
+
+    return interpretationHtml;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-pink-200 flex items-center justify-center p-4 font-inter">
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <style>{`
+        body { font-family: 'Inter', sans-serif; }
+        .form-radio {
+          -webkit-appearance: none; -moz-appearance: none; appearance: none;
+          display: inline-block; vertical-align: middle; background-origin: border-box;
+          user-select: none; flex-shrink: 0; border-radius: 100%; border-width: 2px;
+          border-color: #CBD5E0; background-color: #FFF;
+          transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+        }
+        .form-radio:checked { background-color: #7C3AED; border-color: #7C3AED; } /* Tailwind purple-600 */
+        .form-radio:checked + span { color: #7C3AED; } /* Tailwind purple-600 */
+        * { border-radius: 0.5rem; }
+      `}</style>
+
+      <div className="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-lg space-y-6">
+        <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">ソーシャルスタイル理論</h2>
+
+        {!showResults ? (
+          <>
+            <p className="text-gray-600 text-center mb-6 text-lg">
+              「自分は周りからどう見られているか？」２択より選択してください。
+            </p>
+
+            <button
+              onClick={handleRandomAnswers}
+              className="w-full bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600 transition duration-200 shadow-md text-base font-semibold mb-4"
+            >
+              ランダムに回答する
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {questions.map(q => (
+                <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50 shadow-sm">
+                  <p className="text-lg font-medium text-gray-800 mb-2">
+                    <span className="font-bold text-purple-700">{q.id}.</span> {q.text}
+                  </p>
+                  <div className="flex flex-col space-y-2">
+                    {Object.entries(q.options).map(([key, value]) => (
+                      <label key={key} className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-full shadow-sm hover:shadow-md transition duration-150">
+                        <input
+                          type="radio"
+                          name={`q-${q.id}`}
+                          value={key}
+                          checked={answers[q.id] === key}
+                          onChange={() => handleAnswerChange(q.id, key)}
+                          className="form-radio h-5 w-5"
+                        />
+                        <span className="text-gray-700 font-medium">{key}: {value}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative mt-4" role="alert">
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}
+
+            <button
+              onClick={toggleResults}
+              className="w-full bg-purple-600 text-white p-3 rounded-md hover:bg-purple-700 transition duration-200 shadow-lg text-lg font-semibold"
+            >
+              結果を分析する
+            </button>
+          </>
+        ) : (
+          <div className="results-section space-y-6">
+            <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">あなたのソーシャルスタイル分析結果</h2>
+
+            {/* スコア表示 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-center">
+              <div className="p-4 border border-gray-200 rounded-lg bg-blue-50 shadow-sm">
+                <p className="text-lg font-semibold text-gray-800">Aの個数 - Bの個数 (意見主張軸)</p>
+                <p className="text-4xl font-bold text-blue-700">{waiScores.scoreAB}</p>
+              </div>
+              <div className="p-4 border border-gray-200 rounded-lg bg-green-50 shadow-sm">
+                <p className="text-lg font-semibold text-gray-800">Cの個数 - Dの個数 (感情表現軸)</p>
+                <p className="text-4xl font-bold text-green-700">{waiScores.scoreCD}</p>
+              </div>
+            </div>
+
+            {/* ソーシャルスタイルプロット */}
+            <div className="relative w-full aspect-square max-w-lg mx-auto bg-gray-50 border border-gray-200 rounded-lg shadow-inner flex items-center justify-center">
+                <canvas ref={canvasRef} width="400" height="400" className="w-full h-full"></canvas>
+            </div>
+
+
+            <div className="text-left bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-inner">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">分析結果の詳細</h3>
+              <div dangerouslySetInnerHTML={{ __html: renderInterpretation(waiScores) }}></div>
+            </div>
+
+            <button
+              onClick={resetApp}
+              className="w-full bg-indigo-600 text-white p-3 rounded-md hover:bg-indigo-700 transition duration-200 shadow-lg text-lg font-semibold"
+            >
+              もう一度テストする
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
