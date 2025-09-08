@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自己評価チェックリスト</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* 薄いブルーグレーの背景 */
+        }
+        /* マトリックスヘッダーのスタイル */
+        .matrix-header-cell {
+            @apply font-semibold text-center text-gray-700 p-2 text-sm md:text-base;
+        }
+        /* 質問ラベルのスタイル */
+        .question-label-cell {
+            @apply font-medium text-gray-800 p-3 md:p-4 text-left text-base md:text-lg bg-white border-b border-gray-200;
+        }
+        /* ラジオボタンのセルスタイル */
+        .radio-cell {
+            @apply p-2 md:p-3 text-center border-b border-gray-200;
+        }
+        /* ラジオボタンの見た目を調整 */
+        .radio-input {
+            @apply hidden; /* デフォルトのラジオボタンを隠す */
+        }
+        .radio-circle {
+            @apply block w-6 h-6 md:w-7 md:h-7 rounded-full border-2 border-gray-400 mx-auto transition-all duration-200 cursor-pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 軽い影を追加 */
+        }
+        .radio-input:checked + .radio-circle {
+            @apply border-indigo-500 bg-indigo-500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 選択時の影を強調 */
+        }
+        .radio-input:hover + .radio-circle:not(.radio-input:checked + .radio-circle) {
+            @apply bg-indigo-100 border-indigo-500;
+        }
+
+        /* スマートフォンでのテーブルのレスポンシブ対応 */
+        @media (max-width: 768px) { /* md breakpoint */
+            .assessment-table thead {
+                @apply hidden; /* PC用のヘッダーは非表示 */
+            }
+
+            .assessment-table, .assessment-table tbody, .assessment-table tr {
+                @apply block;
+            }
+
+            .assessment-table tr {
+                @apply mb-4 p-4 border border-gray-200 rounded-lg bg-white shadow-sm; /* 各質問をカードとして表示 */
+                white-space: normal; /* テキストの折り返しを許可 */
+            }
+            
+            /* 質問のテキストセル */
+            .assessment-table .question-label-cell {
+                @apply block w-full text-left p-0 mb-4 border-b pb-4 font-semibold;
+                background-color: transparent;
+                border-right: none;
+            }
+
+            /* ラジオボタンのセル */
+            .assessment-table .radio-cell {
+                @apply inline-block text-center border-none align-top;
+                width: 20%; /* 5つの選択肢を均等に配置 */
+                padding: 4px 2px;
+            }
+
+            /* JSで追加したdata-header属性を使って、各選択肢の上にラベルを表示 */
+            .assessment-table .radio-cell::before {
+                content: attr(data-header);
+                @apply block text-xs text-gray-600 mb-2 whitespace-normal;
+            }
+
+            .radio-circle {
+                @apply w-8 h-8; /* タップしやすいように大きくする */
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+    <div class="container mx-auto max-w-5xl bg-white p-6 md:p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-indigo-700 mb-8">自己評価チェックリスト</h1>
+        <p class="text-center text-gray-600 mb-4">以下の項目について、3つの視点から5段階で評価してください。</p>
+
+        <!-- 5段階評価の凡例をアプリの冒頭に配置 -->
+        <div class="text-sm text-gray-600 mb-8 px-4 py-3 bg-blue-100 rounded-md text-center">
+            <p class="mb-1"><span class="font-bold">1:</span> まったくそう思わない</p>
+            <p class="mb-1"><span class="font-bold">2:</span> あまりそう思わない</p>
+            <p class="mb-1"><span class="font-bold">3:</span> どちらでもない</p>
+            <p class="mb-1"><span class="font-bold">4:</span> ややそう思う</p>
+            <p class="mb-0"><span class="font-bold">5:</span> とてもそう思う</p>
+        </div>
+
+        <div id="assessment-steps-container">
+            <!-- ステップ1: 現在の状態 -->
+            <div id="step-current" class="assessment-step">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-700 mb-6 text-center">ステップ1: ①現在の状態</h2>
+                <button id="random-button-current" class="w-full bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-400 transition-all duration-300 mb-4">
+                    ランダム入力
+                </button>
+                <table class="assessment-table w-full border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-indigo-50">
+                            <th class="matrix-header-cell" style="width: 30%;">質問</th>
+                            <th class="matrix-header-cell" style="width: 14%;">とてもそう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">どちらでもない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思わない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">まったくそう思わない</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body-current">
+                        <!-- Questions will be dynamically inserted here -->
+                    </tbody>
+                </table>
+                <button id="next-button-current" class="mt-8 w-full bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:from-green-600 hover:to-teal-700 transition-all duration-300 transform hover:scale-105">
+                    次へ (理想像へ)
+                </button>
+            </div>
+
+            <!-- ステップ2: 自分の理想像 (最初は非表示) -->
+            <div id="step-ideal" class="assessment-step hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-700 mb-6 text-center">ステップ2: ②自分の理想像</h2>
+                 <button id="random-button-ideal" class="w-full bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-400 transition-all duration-300 mb-4">
+                    ランダム入力
+                </button>
+                <table class="assessment-table w-full border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-indigo-50">
+                            <th class="matrix-header-cell" style="width: 30%;">質問</th>
+                            <th class="matrix-header-cell" style="width: 14%;">とてもそう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">どちらでもない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思わない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">まったくそう思わない</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body-ideal">
+                        <!-- Questions will be dynamically inserted here -->
+                    </tbody>
+                </table>
+                <button id="next-button-ideal" class="mt-8 w-full bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:from-green-600 hover:to-teal-700 transition-all duration-300 transform hover:scale-105">
+                    次へ (他者像へ)
+                </button>
+            </div>
+
+            <!-- ステップ3: 家族やともだちから見た他者像 (最初は非表示) -->
+            <div id="step-other" class="assessment-step hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-indigo-700 mb-6 text-center">ステップ3: ③家族やともだちから見た他者像</h2>
+                <button id="random-button-other" class="w-full bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-400 transition-all duration-300 mb-4">
+                    ランダム入力
+                </button>
+                <table class="assessment-table w-full border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-indigo-50">
+                            <th class="matrix-header-cell" style="width: 30%;">質問</th>
+                            <th class="matrix-header-cell" style="width: 14%;">とてもそう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思う</th>
+                            <th class="matrix-header-cell" style="width: 14%;">どちらでもない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">そう思わない</th>
+                            <th class="matrix-header-cell" style="width: 14%;">まったくそう思わない</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body-other">
+                        <!-- Questions will be dynamically inserted here -->
+                    </tbody>
+                </table>
+                <button id="submit-button-final" class="mt-8 w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
+                    結果を見る
+                </button>
+            </div>
+        </div>
+
+        <div id="results" class="mt-12 p-6 bg-gray-50 rounded-lg shadow-inner hidden">
+            <h2 class="text-2xl font-bold text-indigo-700 mb-4">評価結果</h2>
+            <div id="results-table-container" class="mb-8 w-full overflow-x-auto">
+                <!-- 結果テーブルがここに表示されます -->
+            </div>
+            <div id="self-assessment-quality-display" class="p-4 bg-white rounded-md shadow-sm hidden">
+                <h3 class="text-xl font-bold text-indigo-700 mb-3">自己評価の高さと質</h3>
+                <p id="self-assessment-quality-text" class="text-gray-800 leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statements = [
+            "生まれかわれたら別の人間になりたい。",
+            "自分は人から頼りにされている。",
+            "自分には人よりすぐれたところがある。",
+            "人に批判されるとすぐに納得してしまう。",
+            "失敗すると自分のせいだと思う。",
+            "人からの評価が気になる。",
+            "自分は主体的に行動することができる。",
+            "人の目が気になってしまうことがある。",
+            "自分がイヤになることがある。",
+            "人からバカにされることが我慢できない。",
+            "自分に自信がある。",
+            "人の意見が気になって決断ができない。",
+            "自分には思い出したくない面がある。",
+            "リーダー的役割は負担である。",
+            "他の人をうらやましく思うことがある。",
+            "人とうまくつきあえるほうである。",
+            "今の自分に満足している。",
+            "話の聞き手よりも話し手になるほうが多い。",
+            "自分は努力すれば向上することができる。",
+            "自分は人の役に立つことができる人間だと思う。",
+            "「このままではいけない」と思うことがある。",
+            "人から嫌われるのではないかと心配だ。",
+            "自分には個性があると思う。",
+            "人前に出ても平気でいられる。"
+        ];
+
+        // 逆転項目
+        const reverseStatements = [
+            "生まれかわれたら別の人間になりたい。",
+            "人に批判されるとすぐに納得してしまう。",
+            "失敗すると自分のせいだと思う。",
+            "人からの評価が気になる。",
+            "人の目が気になってしまうことがある。",
+            "自分がイヤになることがある。",
+            "人からバカにされることが我慢できない。",
+            "人の意見が気になって決断ができない。",
+            "自分には思い出したくない面がある。",
+            "リーダー的役割は負担である。",
+            "他の人をうらやましく思うことがある。",
+            "「このままではいけない」と思うことがある。",
+            "人から嫌われるのではないかと心配だ."
+        ];
+
+        const assessmentStepsContainer = document.getElementById('assessment-steps-container');
+        const resultsDiv = document.getElementById('results');
+        const resultsTableContainer = document.getElementById('results-table-container'); // 結果表示用の新しいコンテナ
+        const selfAssessmentQualityDisplay = document.getElementById('self-assessment-quality-display');
+        const selfAssessmentQualityText = document.getElementById('self-assessment-quality-text');
+
+        const perspectives = {
+            'current': '現在の状態',
+            'ideal': '自分の理想像',
+            'other': '家族やともだちから見た他者像'
+        };
+        const perspectiveKeys = Object.keys(perspectives); // ['current', 'ideal', 'other']
+
+        const likertLabels = {
+            1: 'まったくそう思わない',
+            2: 'あまりそう思わない',
+            3: 'どちらでもない',
+            4: 'ややそう思う',
+            5: 'とてもそう思う'
+        };
+
+        const likertHeaders = [
+            'とてもそう思う', 'そう思う', 'どちらでもない', 'そう思わない', 'まったくそう思わない'
+        ];
+        const likertValuesMap = {
+            'とてもそう思う': 5,
+            'そう思う': 4,
+            'どちらでもない': 3,
+            'そう思わない': 2,
+            'まったくそう思わない': 1
+        };
+
+        // 平均値データ
+        const averageScoresData = {
+            selfBeingCurrent: 31,
+            selfBeingIdeal: 42.3,
+            interpersonalCurrent: 33.2,
+            interpersonalIdeal: 44.0
+        };
+        // 各カテゴリの満点 (質問数12 * 5点)
+        const maxCategoryScore = 12 * 5; // 60点
+        // 全体の満点 (質問数24 * 5点)
+        const maxTotalScore = 24 * 5; // 120点
+
+        let currentStepIndex = 0; // 現在のステップ (0:current, 1:ideal, 2:other)
+        const allAnswers = {
+            current: {},
+            ideal: {},
+            other: {}
+        }; // 全ての回答を保存するオブジェクト
+
+        /**
+         * 各ステップ（視点）ごとの質問テーブルを生成し、DOMに追加します。
+         */
+        function renderSteps() {
+            perspectiveKeys.forEach(key => {
+                const tableBody = document.getElementById(`table-body-${key}`);
+                statements.forEach((statement, statementIndex) => {
+                    const isReverse = reverseStatements.includes(statement);
+                    const questionRow = document.createElement('tr');
+                    questionRow.className = 'matrix-row';
+
+                    // 質問テキストのセル
+                    const questionLabelCell = document.createElement('td');
+                    questionLabelCell.className = 'question-label-cell';
+                    questionLabelCell.innerHTML = `${statementIndex + 1}. ${statement}`;
+                    if (isReverse) {
+                        const reverseIndicator = document.createElement('span');
+                        reverseIndicator.className = 'text-xs font-normal text-red-500 ml-2';
+                        reverseIndicator.textContent = '(逆転項目)';
+                        questionLabelCell.appendChild(reverseIndicator);
+                    }
+                    questionRow.appendChild(questionLabelCell);
+
+                    // 5つのラジオボタンのセル
+                    likertHeaders.forEach(headerText => {
+                        const value = likertValuesMap[headerText]; // 評価値 (5, 4, 3, 2, 1)
+                        const radioId = `q${statementIndex + 1}_${key}_${value}`;
+                        const radioName = `q${statementIndex + 1}_${key}`; // name属性は質問と視点で一意に
+
+                        const radioCell = document.createElement('td');
+                        radioCell.className = 'radio-cell';
+                        // スマートフォン表示用にdata-header属性を追加
+                        radioCell.setAttribute('data-header', headerText);
+                        radioCell.innerHTML = `
+                            <label for="${radioId}">
+                                <input type="radio" id="${radioId}" name="${radioName}" value="${value}" class="radio-input">
+                                <span class="radio-circle"></span>
+                            </label>
+                        `;
+                        questionRow.appendChild(radioCell);
+                    });
+                    tableBody.appendChild(questionRow);
+                });
+            });
+        }
+
+        /**
+         * 指定されたステップを表示し、他のステップを非表示にします。
+         * @param {number} index - 表示するステップのインデックス (0, 1, 2)
+         */
+        function showStep(index) {
+            const steps = document.querySelectorAll('.assessment-step');
+            steps.forEach((step, i) => {
+                if (i === index) {
+                    step.classList.remove('hidden');
+                } else {
+                    step.classList.add('hidden');
+                }
+            });
+            // ページ上部にスクロール
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /**
+         * 現在のステップの回答を収集し、次のステップに進むか結果を表示します。
+         */
+        function goToNextStep() {
+            const currentPerspectiveKey = perspectiveKeys[currentStepIndex];
+            const currentTableBody = document.getElementById(`table-body-${currentPerspectiveKey}`);
+            let stepAllAnswered = true;
+            const currentStepAnswers = {};
+
+            statements.forEach((statement, index) => {
+                const questionId = `q${index + 1}`;
+                const selectedRadio = currentTableBody.querySelector(`input[name="${questionId}_${currentPerspectiveKey}"]:checked`);
+                if (selectedRadio) {
+                    currentStepAnswers[statement] = parseInt(selectedRadio.value);
+                } else {
+                    stepAllAnswered = false;
+                }
+            });
+
+            if (!stepAllAnswered) {
+                // 未回答の項目がある場合、ユーザーに通知
+                resultsTableContainer.innerHTML = ''; // 表をクリア
+                selfAssessmentQualityDisplay.classList.add('hidden'); // 品質評価を隠す
+                resultsDiv.innerHTML = '<h2 class="text-2xl font-bold text-indigo-700 mb-4">評価結果</h2><p class="text-red-600 font-bold">このステップでまだ回答されていない項目があります。すべての項目に回答してください。</p>';
+                resultsDiv.classList.remove('hidden');
+                resultsDiv.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            allAnswers[currentPerspectiveKey] = currentStepAnswers; // 回答を保存
+
+            currentStepIndex++;
+            if (currentStepIndex < perspectiveKeys.length) {
+                showStep(currentStepIndex);
+                resultsDiv.classList.add('hidden'); // 次のステップに進む際は結果表示を隠す
+            } else {
+                // 全てのステップが完了したら結果を表示
+                collectAndDisplayResults();
+            }
+        }
+
+        /**
+         * 現在のステップの全てのラジオボタンをランダムに選択します。
+         */
+        function randomFillCurrentStep() {
+            const currentPerspectiveKey = perspectiveKeys[currentStepIndex];
+            const currentTableBody = document.getElementById(`table-body-${currentPerspectiveKey}`);
+
+            statements.forEach((statement, index) => {
+                const questionId = `q${index + 1}`;
+                const radioGroupName = `q${index + 1}_${currentPerspectiveKey}`;
+                
+                // 1から5までのランダムな値を選択
+                const randomValue = Math.floor(Math.random() * 5) + 1;
+                
+                // 該当するラジオボタンを見つけてチェック
+                const radioToSelect = currentTableBody.querySelector(`input[name="${radioGroupName}"][value="${randomValue}"]`);
+                if (radioToSelect) {
+                    radioToSelect.checked = true;
+                }
+            });
+             // ランダム入力後、結果表示エリアを非表示にする（ユーザーに次へ進むよう促すため）
+            resultsDiv.classList.add('hidden');
+        }
+
+
+        /**
+         * 自己評価の高さと質を評価し、表示します。
+         * @param {object} aggregateScores - 集計されたスコア
+         */
+        function evaluateSelfAssessmentQuality(aggregateScores) {
+            const currentSelfBeing = aggregateScores.current.selfBeing;
+            const currentInterpersonal = aggregateScores.current.interpersonal;
+            const currentTotal = currentSelfBeing + currentInterpersonal;
+            const otherSelfBeing = aggregateScores.other.selfBeing;
+            const otherInterpersonal = aggregateScores.other.interpersonal;
+            const otherTotal = otherSelfBeing + otherInterpersonal;
+            
+            let heightAssessment = ""; // 自己評価の高さ
+            let qualityAssessment = ""; // 自己評価の質
+
+            // 自己評価の高さの基準 (ざっくりと全体スコアの中央値と比較)
+            // 全体スコアの範囲: 24 (最低) - 120 (最高), 中央値: 72
+            // 自己の在り方: 12 - 60, 中央値: 36
+            // 対人関係: 12 - 60, 中央値: 36
+            
+            // 例: 自己の在り方と対人関係の平均が36より高いかで高低を判断
+            const avgCurrentSelfBeing = currentSelfBeing / aggregateScores.current.selfBeingCount;
+            const avgCurrentInterpersonal = currentInterpersonal / aggregateScores.current.interpersonalCount;
+
+            if (currentTotal >= (maxTotalScore * 0.7)) { // 例: 84点以上で「高い」
+                heightAssessment = "高い";
+            } else if (currentTotal <= (maxTotalScore * 0.3)) { // 例: 36点以下で「低い」
+                heightAssessment = "低い";
+            } else {
+                heightAssessment = "中程度";
+            }
+
+            // 自己評価の質 (客観的評価との一致・不一致)
+            // 「現在の状態」と「他者像」のスコア差を見る
+            const diffSelfBeing = Math.abs(currentSelfBeing - otherSelfBeing);
+            const diffInterpersonal = Math.abs(currentInterpersonal - otherInterpersonal);
+            const diffTotalCurrentOther = Math.abs(currentTotal - otherTotal);
+
+            // 乖離が大きい場合を「不一致」と判断する閾値 (ここでは合計で±15点以上、またはカテゴリで±8点以上とする)
+            const qualityThresholdCategory = 8; 
+            const qualityThresholdTotal = 15;
+
+            if (heightAssessment === "高い") {
+                if (diffSelfBeing <= qualityThresholdCategory && diffInterpersonal <= qualityThresholdCategory && diffTotalCurrentOther <= qualityThresholdTotal) {
+                    qualityAssessment = "客観的で他者からの評価と一致 (自信に満ちて、安定的。他者に対しても肯定的・親和的。)";
+                } else {
+                    qualityAssessment = "主観的で他者からの評価と不一致 (過大評価。非現実的な万能感。願望的で自己愛にしがみつく。他者に対して否定的。)";
+                }
+            } else { // 自己評価が低いまたは中程度の場合
+                if (diffSelfBeing <= qualityThresholdCategory && diffInterpersonal <= qualityThresholdCategory && diffTotalCurrentOther <= qualityThresholdTotal) {
+                    qualityAssessment = "客観的で他者からの評価と一致 (自信はないが、建設的方向につながりやすい。他者に対して、肯定的。)";
+                } else {
+                    qualityAssessment = "主観的で他者からの評価と不一致 (過小評価。欠点にとらわれる。自虐的。対人恐怖的。嫉妬などをもちやすい。)";
+                }
+            }
+            
+            // 結果テキストを組み立て
+            let qualityText = `あなたの自己評価は<b>${heightAssessment}</b>です。`;
+            qualityText += `<br><br>客観的な評価の質としては、「<b>${qualityAssessment}</b>」と言えるでしょう。`;
+
+            selfAssessmentQualityText.innerHTML = qualityText;
+            selfAssessmentQualityDisplay.classList.remove('hidden');
+        }
+
+
+        /**
+         * 全ての回答を収集し、最終結果を表形式で表示します。
+         */
+        function collectAndDisplayResults() {
+             // 結果表示エリアの初期化
+            resultsDiv.innerHTML = `
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4">評価結果</h2>
+                <div id="results-table-container" class="mb-8 w-full overflow-x-auto"></div>
+                <div id="self-assessment-quality-display" class="p-4 bg-white rounded-md shadow-sm hidden">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-3">自己評価の高さと質</h3>
+                    <p id="self-assessment-quality-text" class="text-gray-800 leading-relaxed"></p>
+                </div>
+            `;
+            const newResultsTableContainer = document.getElementById('results-table-container');
+            const newSelfAssessmentQualityDisplay = document.getElementById('self-assessment-quality-display');
+            const newSelfAssessmentQualityText = document.getElementById('self-assessment-quality-text');
+
+            // 各視点ごとの合計スコアを計算
+            const aggregateScores = {
+                current: { selfBeing: 0, interpersonal: 0, selfBeingCount: 0, interpersonalCount: 0 },
+                ideal: { selfBeing: 0, interpersonal: 0, selfBeingCount: 0, interpersonalCount: 0 },
+                other: { selfBeing: 0, interpersonal: 0, selfBeingCount: 0, interpersonalCount: 0 }
+            };
+
+            statements.forEach((statement, index) => {
+                const isReverse = reverseStatements.includes(statement);
+                const isOddItem = (index + 1) % 2 !== 0; // 奇数項目 (自己の在り方) か偶数項目 (対人関係) か
+                const category = isOddItem ? 'selfBeing' : 'interpersonal';
+
+                perspectiveKeys.forEach(key => {
+                    const selectedValue = allAnswers[key][statement];
+                    if (selectedValue !== undefined) {
+                        let scoreToAggregate = selectedValue;
+                        if (isReverse) {
+                            scoreToAggregate = 6 - selectedValue; // 逆転スコアを計算
+                        }
+                        aggregateScores[key][category] += scoreToAggregate;
+                        if (isOddItem) {
+                            aggregateScores[key].selfBeingCount++;
+                        } else {
+                            aggregateScores[key].interpersonalCount++;
+                        }
+                    }
+                });
+            });
+
+            // 結果を格納するHTMLテーブルを構築
+            let resultsTableHtml = `
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-indigo-100">
+                            <th class="p-3 border text-gray-700">視点</th>
+                            <th class="p-3 border text-gray-700">自己の在り方（奇数項目）</th>
+                            <th class="p-3 border text-gray-700">対人関係（偶数項目）</th>
+                            <th class="p-3 border text-gray-700">合計スコア</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const [perspectiveKey, scores] of Object.entries(aggregateScores)) {
+                const perspectiveLabel = perspectives[perspectiveKey];
+                const totalScore = scores.selfBeing + scores.interpersonal;
+
+                let selfBeingClass = '';
+                let interpersonalClass = '';
+                let totalScoreClass = '';
+
+                // 平均値との比較とクラスの適用
+                if (perspectiveKey === 'current' || perspectiveKey === 'ideal') {
+                    // 自己の在り方
+                    const averageSelfBeing = (perspectiveKey === 'current') ? averageScoresData.selfBeingCurrent : averageScoresData.selfBeingIdeal;
+                    const diffSelfBeing = Math.abs(scores.selfBeing - averageSelfBeing);
+                    if (diffSelfBeing > 5) {
+                        selfBeingClass = 'bg-red-100 font-bold'; // 基準外は赤く強調
+                    }
+
+                    // 対人関係
+                    const averageInterpersonal = (perspectiveKey === 'current') ? averageScoresData.interpersonalCurrent : averageScoresData.interpersonalIdeal;
+                    const diffInterpersonal = Math.abs(scores.interpersonal - averageInterpersonal);
+                    if (diffInterpersonal > 5) {
+                        interpersonalClass = 'bg-red-100 font-bold'; // 基準外は赤く強調
+                    }
+
+                    // 合計スコア
+                    const averageTotal = (perspectiveKey === 'current') ? (averageScoresData.selfBeingCurrent + averageScoresData.interpersonalCurrent) : (averageScoresData.selfBeingIdeal + averageScoresData.interpersonalIdeal);
+                    const diffTotal = Math.abs(totalScore - averageTotal);
+                    if (diffTotal > 10) {
+                        totalScoreClass = 'bg-red-100 font-bold'; // 基準外は赤く強調
+                    }
+                }
+
+                resultsTableHtml += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 border text-gray-800">${perspectiveLabel}</td>
+                        <td class="p-3 border text-gray-800 ${selfBeingClass}">${scores.selfBeing} (平均: ${
+                            (perspectiveKey === 'current' || perspectiveKey === 'ideal') ? averageScoresData[`selfBeing${perspectiveKey.charAt(0).toUpperCase() + perspectiveKey.slice(1)}`].toFixed(1) : 'N/A'
+                        })</td>
+                        <td class="p-3 border text-gray-800 ${interpersonalClass}">${scores.interpersonal} (平均: ${
+                            (perspectiveKey === 'current' || perspectiveKey === 'ideal') ? averageScoresData[`interpersonal${perspectiveKey.charAt(0).toUpperCase() + perspectiveKey.slice(1)}`].toFixed(1) : 'N/A'
+                        })</td>
+                        <td class="p-3 border text-gray-800 ${totalScoreClass}">${totalScore} (平均: ${
+                            (perspectiveKey === 'current' || perspectiveKey === 'ideal') ? (averageScoresData[`selfBeing${perspectiveKey.charAt(0).toUpperCase() + perspectiveKey.slice(1)}`] + averageScoresData[`interpersonal${perspectiveKey.charAt(0).toUpperCase() + perspectiveKey.slice(1)}`]).toFixed(1) : 'N/A'
+                        })</td>
+                    </tr>
+                `;
+            }
+
+            resultsTableHtml += `
+                    </tbody>
+                </table>
+                <p class="text-gray-700 mt-4 text-sm md:text-base">
+                    ※各カテゴリ合計で平均から<span class="font-bold text-red-600">±5点以上</span>、合計スコアで平均から<span class="font-bold text-red-600">±10点以上</span>離れている項目は<span class="font-bold text-red-600">赤く強調</span>表示されます。
+                </p>
+            `;
+
+            newResultsTableContainer.innerHTML = resultsTableHtml; // 結果テーブルを表示
+            
+            // 自己評価の高さと質を評価して表示
+            evaluateSelfAssessmentQuality(aggregateScores);
+
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ページロード時に質問を初期化
+        window.onload = function() {
+            renderSteps(); // 全てのステップを生成
+            showStep(currentStepIndex); // 最初のステップを表示
+
+            // 各ステップの「次へ」ボタンにイベントリスナーをアタッチ
+            document.getElementById('next-button-current').addEventListener('click', goToNextStep);
+            document.getElementById('next-button-ideal').addEventListener('click', goToNextStep);
+            document.getElementById('submit-button-final').addEventListener('click', goToNextStep); // 最後のボタンは結果表示
+
+            // 各ステップの「ランダム入力」ボタンにイベントリスナーをアタッチ
+            document.getElementById('random-button-current').addEventListener('click', randomFillCurrentStep);
+            document.getElementById('random-button-ideal').addEventListener('click', randomFillCurrentStep);
+            document.getElementById('random-button-other').addEventListener('click', randomFillCurrentStep);
+        };
+    </script>
+</body>
+</html>
+
